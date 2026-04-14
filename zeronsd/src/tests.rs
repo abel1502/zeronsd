@@ -76,7 +76,7 @@ fn test_parse_ip_from_cidr() {
 #[test]
 fn test_domain_or_default() {
     use crate::utils::{domain_or_default, DEFAULT_DOMAIN_NAME};
-    use hickory_server::client::rr::Name;
+    use hickory_server::proto::rr::Name;
 
     assert_eq!(
         domain_or_default(None).unwrap(),
@@ -325,7 +325,7 @@ fn test_parse_hosts() {
     use crate::hosts::parse_hosts;
     use std::net::IpAddr;
     use std::str::FromStr;
-    use hickory_dns_resolver::Name;
+    use hickory_resolver::Name;
 
     let domain = &Name::from_str("zombocom").unwrap();
 
@@ -386,7 +386,7 @@ fn test_parse_hosts() {
 #[test]
 fn test_parse_hosts_duplicate() {
     use crate::hosts::parse_hosts;
-    use hickory_dns_resolver::Name;
+    use hickory_resolver::Name;
 
     let domain = Name::from_str("zombocom").unwrap();
 

@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use ipnetwork::IpNetwork;
 use rand::prelude::{IteratorRandom, SliceRandom};
 use tracing::info;
-use hickory_dns_resolver::config::{NameServerConfig, ResolverConfig, ResolverOpts};
+use hickory_resolver::config::{NameServerConfig, ResolverConfig, ResolverOpts};
 
 use zeronsd::{
     addresses::Calculator,
@@ -136,7 +136,7 @@ impl Service {
             resolver_config.add_name_server(NameServerConfig {
                 bind_addr: None,
                 socket_addr: socket,
-                protocol: hickory_dns_resolver::config::Protocol::Udp,
+                protocol: hickory_resolver::config::Protocol::Udp,
                 tls_dns_name: None,
                 trust_nx_responses: true,
             });
@@ -152,7 +152,7 @@ impl Service {
             opts.negative_max_ttl = Some(Duration::new(0, 0));
 
             resolvers.push(Arc::new(
-                hickory_dns_resolver::TokioAsyncResolver::tokio(resolver_config, opts).unwrap(),
+                hickory_resolver::TokioAsyncResolver::tokio(resolver_config, opts).unwrap(),
             ));
         }
 

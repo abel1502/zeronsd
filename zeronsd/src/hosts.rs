@@ -6,7 +6,7 @@ use std::{
     str::FromStr,
 };
 use tracing::warn;
-use hickory_server::client::rr::Name;
+use hickory_server::proto::rr::Name;
 
 use crate::traits::ToHostname;
 

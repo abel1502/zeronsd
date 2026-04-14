@@ -4,8 +4,8 @@ use anyhow::anyhow;
 use ipnetwork::IpNetwork;
 use lazy_static::lazy_static;
 use regex::Regex;
-use hickory_dns_resolver::{proto::error::ProtoError, IntoName, Name};
-use hickory_server::client::rr::LowerName;
+use hickory_resolver::{proto::error::ProtoError, IntoName, Name};
+use hickory_server::proto::rr::LowerName;
 use zerotier_api::central_api::types::Member;
 
 pub trait ToPointerSOA {
@@ -104,8 +104,8 @@ mod tests {
 
     use super::{ToHostname, ToPointerSOA, ToWildcard};
     use ipnetwork::IpNetwork;
-    use hickory_dns_resolver::Name;
-    use hickory_server::client::rr::LowerName;
+    use hickory_resolver::Name;
+    use hickory_server::proto::rr::LowerName;
     use zerotier_api::central_api::types::Member;
 
     #[test]
