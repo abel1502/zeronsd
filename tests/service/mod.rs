@@ -14,10 +14,13 @@ use std::{
 };
 
 use async_trait::async_trait;
+use hickory_resolver::{
+    config::{NameServerConfig, ResolverConfig, ResolverOpts},
+    name_server::TokioConnectionProvider,
+};
 use ipnetwork::IpNetwork;
 use rand::prelude::{IteratorRandom, SliceRandom};
 use tracing::info;
-use hickory_resolver::config::{NameServerConfig, ResolverConfig, ResolverOpts};
 
 use zeronsd::{
     addresses::Calculator,
@@ -136,23 +139,30 @@ impl Service {
             resolver_config.add_name_server(NameServerConfig {
                 bind_addr: None,
                 socket_addr: socket,
-                protocol: hickory_resolver::config::Protocol::Udp,
+                protocol: hickory_resolver::proto::xfer::Protocol::Udp,
                 tls_dns_name: None,
-                trust_nx_responses: true,
+                trust_negative_responses: true,
+                http_endpoint: None,
             });
 
             let mut opts = ResolverOpts::default();
             opts.attempts = 10;
             opts.cache_size = 0;
-            opts.rotate = true;
-            opts.use_hosts_file = false;
+            opts.server_ordering_strategy =
+                hickory_resolver::config::ServerOrderingStrategy::RoundRobin;
+            opts.use_hosts_file = hickory_resolver::config::ResolveHosts::Never;
             opts.positive_min_ttl = Some(Duration::new(0, 0));
             opts.positive_max_ttl = Some(Duration::new(0, 0));
             opts.negative_min_ttl = Some(Duration::new(0, 0));
             opts.negative_max_ttl = Some(Duration::new(0, 0));
 
             resolvers.push(Arc::new(
-                hickory_resolver::TokioAsyncResolver::tokio(resolver_config, opts).unwrap(),
+                hickory_resolver::Resolver::builder_with_config(
+                    resolver_config,
+                    TokioConnectionProvider::default(),
+                )
+                .with_options(opts)
+                .build(),
             ));
         }
 
@@ -240,7 +250,7 @@ impl Service {
         for ip in listen_ips.clone() {
             let server = Server::new(ztauthority.to_owned());
             info!("Serving {}", ip.clone());
-            tokio::spawn(server.listen(ip.ip(), Duration::new(1, 0), None, None, None));
+            tokio::spawn(server.listen(ip.ip(), Duration::new(1, 0), None));
         }
 
         listen_ips

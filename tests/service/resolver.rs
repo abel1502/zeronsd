@@ -4,12 +4,9 @@ use std::{
 };
 
 use async_trait::async_trait;
-use hickory_resolver::{
-    name_server::{GenericConnection, GenericConnectionProvider, TokioRuntime},
-    AsyncResolver,
-};
+use hickory_resolver::{name_server::GenericConnector, proto::runtime::TokioRuntimeProvider};
 
-pub type Resolver = AsyncResolver<GenericConnection, GenericConnectionProvider<TokioRuntime>>;
+pub type Resolver = hickory_resolver::Resolver<GenericConnector<TokioRuntimeProvider>>;
 
 pub type Resolvers = Vec<Arc<Resolver>>;
 
@@ -28,7 +25,7 @@ impl Lookup for Resolver {
             .unwrap()
             .as_lookup()
             .record_iter()
-            .map(|r| r.data().unwrap().clone().into_a().unwrap())
+            .map(|r| r.data().clone().into_a().unwrap().into())
             .collect()
     }
 
@@ -38,7 +35,7 @@ impl Lookup for Resolver {
             .unwrap()
             .as_lookup()
             .record_iter()
-            .map(|r| r.data().unwrap().clone().into_aaaa().unwrap())
+            .map(|r| r.data().clone().into_aaaa().unwrap().into())
             .collect()
     }
 
@@ -48,7 +45,7 @@ impl Lookup for Resolver {
             .unwrap()
             .as_lookup()
             .record_iter()
-            .map(|r| r.data().unwrap().clone().into_ptr().unwrap().to_string())
+            .map(|r| r.data().clone().into_ptr().unwrap().to_string())
             .collect()
     }
 }

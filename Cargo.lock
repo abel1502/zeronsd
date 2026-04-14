@@ -3534,6 +3534,7 @@ dependencies = [
  "async-trait",
  "ctor 0.2.9",
  "hickory-dns",
+ "hickory-resolver",
  "ipnetwork",
  "rand 0.8.5",
  "serde",
