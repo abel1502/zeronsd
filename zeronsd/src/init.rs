@@ -214,12 +214,13 @@ impl Launcher {
                         let leaf_cert = {
                             let pem = std::fs::read(&cert_path)?;
                             let mut reader = BufReader::new(pem.as_slice());
-                            rustls_pemfile::certs(&mut reader)
+                            let certs = rustls_pemfile::certs(&mut reader)
                                 .next()
                                 .transpose()?
                                 .ok_or_else(|| {
                                     anyhow!("no certificate found in {}", cert_path.display())
-                                })?
+                                })?;
+                            certs
                         };
 
                         let mut cert_chain = vec![leaf_cert];

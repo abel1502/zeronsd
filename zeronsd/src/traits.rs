@@ -4,7 +4,7 @@ use anyhow::anyhow;
 use ipnetwork::IpNetwork;
 use lazy_static::lazy_static;
 use regex::Regex;
-use hickory_resolver::{proto::error::ProtoError, IntoName, Name};
+use hickory_resolver::{proto::ProtoError, IntoName, Name};
 use hickory_server::proto::rr::LowerName;
 use zerotier_api::central_api::types::Member;
 
