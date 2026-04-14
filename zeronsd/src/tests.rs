@@ -85,12 +85,12 @@ fn test_domain_or_default() {
 
     assert_eq!(
         domain_or_default(Some("zerotier")).unwrap(),
-        Name::from_str("zerotier").unwrap()
+        Name::from_str("zerotier.").unwrap()
     );
 
     assert_eq!(
         domain_or_default(Some("zerotier.tld")).unwrap(),
-        Name::from_str("zerotier.tld").unwrap()
+        Name::from_str("zerotier.tld.").unwrap()
     );
 
     for bad in ["bad.", "~", "!", ".", ""] {
