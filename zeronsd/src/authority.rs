@@ -147,7 +147,7 @@ impl ZTAuthority {
 
         let v6assign = network.config.clone().unwrap().v6_assign_mode;
         if let Some(v6assign) = v6assign {
-            if v6assign._6plane.unwrap_or(false) {
+            if v6assign.x6plane.unwrap_or(false) {
                 let s = network.clone().sixplane()?;
                 sixplane = Some(s);
             }
