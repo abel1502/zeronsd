@@ -356,13 +356,30 @@ checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
 name = "ctor"
-version = "0.2.8"
+version = "0.2.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "edb49164822f3ee45b17acd4a208cfc1251410cf0cad9a833234c9890774dd9f"
+checksum = "32a2785755761f3ddc1492979ce1e48d2c00d09311c39e4466429188f3dd6501"
 dependencies = [
  "quote",
  "syn 2.0.117",
 ]
+
+[[package]]
+name = "ctor"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95d0d11eb38e7642efca359c3cf6eb7b2e528182d09110165de70192b0352775"
+dependencies = [
+ "ctor-proc-macro",
+ "dtor",
+ "link-section",
+]
+
+[[package]]
+name = "ctor-proc-macro"
+version = "0.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7ab264ea985f1bd27887d7b21ea2bb046728e05d11909ca138d700c494730db"
 
 [[package]]
 name = "data-encoding"
@@ -389,6 +406,21 @@ dependencies = [
  "quote",
  "syn 2.0.117",
 ]
+
+[[package]]
+name = "dtor"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17f72721db8027a4e96dd6fb50d2a1d32259c9d3da1b63dee612ccd981e14293"
+dependencies = [
+ "dtor-proc-macro",
+]
+
+[[package]]
+name = "dtor-proc-macro"
+version = "0.0.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8c98b077c7463d01d22dde8a24378ddf1ca7263dc687cffbed38819ea6c21131"
 
 [[package]]
 name = "dunce"
@@ -1283,6 +1315,12 @@ dependencies = [
  "anyhow",
  "version_check",
 ]
+
+[[package]]
+name = "link-section"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "468808413fa8bdf0edbe61c2bbc182dfc59885b94f496cf3fb42c9c96b1e0149"
 
 [[package]]
 name = "linked-hash-map"
@@ -3463,7 +3501,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "clap 3.2.25",
- "ctor",
+ "ctor 0.10.0",
  "hex",
  "hickory-client",
  "hickory-dns",
@@ -3494,7 +3532,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "ctor",
+ "ctor 0.2.9",
  "hickory-dns",
  "ipnetwork",
  "rand 0.8.5",
