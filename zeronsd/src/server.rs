@@ -1,14 +1,11 @@
 use std::{
     net::{IpAddr, SocketAddr},
+    sync::Arc,
     time::Duration,
 };
 use tracing::info;
 
-use rustls::{
-    pkey::{PKey, Private},
-    stack::Stack,
-    x509::X509,
-};
+use rustls::server::ResolvesServerCert;
 use tokio::net::{TcpListener, UdpSocket};
 
 use hickory_server::server::ServerFuture;
@@ -28,9 +25,7 @@ impl Server {
         self,
         ip: IpAddr,
         tcp_timeout: Duration,
-        certs: Option<X509>,
-        cert_chain: Option<Stack<X509>>,
-        key: Option<PKey<Private>>,
+        tls_resolver: Option<Arc<dyn ResolvesServerCert>>,
     ) -> Result<(), anyhow::Error> {
         let sa = SocketAddr::new(ip, 53);
         let tcp = TcpListener::bind(sa).await?;
@@ -38,11 +33,11 @@ impl Server {
 
         let mut sf = ServerFuture::new(init_catalog(self.0).await?);
 
-        if let (Some(certs), Some(key)) = (certs.clone(), key.clone()) {
+        if let Some(tls_resolver) = tls_resolver {
             info!("Configuring DoT Listener");
             let tls = TcpListener::bind(SocketAddr::new(ip, 853)).await?;
 
-            match sf.register_tls_listener(tls, tcp_timeout, ((certs, cert_chain), key)) {
+            match sf.register_tls_listener(tls, tcp_timeout, tls_resolver) {
                 Ok(_) => {}
                 Err(e) => tracing::error!("Cannot start DoT listener: {}", e),
             }

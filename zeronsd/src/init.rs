@@ -1,7 +1,9 @@
 use std::{
     collections::{hash_map::Entry, HashMap},
+    io::BufReader,
     path::PathBuf,
     str::FromStr,
+    sync::Arc,
     time::Duration,
 };
 
@@ -10,7 +12,10 @@ use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
-use rustls::{pkey::PKey, stack::Stack, x509::X509};
+use rustls::{
+    server::ResolvesServerCert,
+    sign::{CertifiedKey, SingleCertAndKey},
+};
 
 use crate::{
     addresses::*,
@@ -200,40 +205,56 @@ impl Launcher {
             tokio::spawn(find_members(ztauthority.clone()));
 
             let server = Server::new(ztauthority.to_owned());
+
+            let tls_resolver: Option<Arc<dyn ResolvesServerCert>> =
+                match (self.tls_cert.clone(), self.tls_key.clone()) {
+                    (Some(cert_path), Some(key_path)) => {
+                        let provider = rustls::crypto::ring::default_provider();
+
+                        let leaf_cert = {
+                            let pem = std::fs::read(&cert_path)?;
+                            let mut reader = BufReader::new(pem.as_slice());
+                            rustls_pemfile::certs(&mut reader)
+                                .next()
+                                .transpose()?
+                                .ok_or_else(|| {
+                                    anyhow!("no certificate found in {}", cert_path.display())
+                                })?
+                        };
+
+                        let mut cert_chain = vec![leaf_cert];
+
+                        if let Some(chain_path) = self.chain_cert.clone() {
+                            let pem = std::fs::read(&chain_path)?;
+                            let mut reader = BufReader::new(pem.as_slice());
+                            cert_chain.extend(
+                                rustls_pemfile::certs(&mut reader)
+                                    .collect::<Result<Vec<_>, _>>()?,
+                            );
+                        }
+
+                        let key = {
+                            let pem = std::fs::read(&key_path)?;
+                            let mut reader = BufReader::new(pem.as_slice());
+                            rustls_pemfile::private_key(&mut reader)?.ok_or_else(|| {
+                                anyhow!("no private key found in {}", key_path.display())
+                            })?
+                        };
+
+                        let certified_key = CertifiedKey::from_der(cert_chain, key, &provider)?;
+                        Some(Arc::new(SingleCertAndKey::from(Arc::new(certified_key)))
+                            as Arc<dyn ResolvesServerCert>)
+                    }
+                    _ => None,
+                };
+
             for ip in listen_ips {
                 info!("Your IP for this network: {}", ip);
-
-                let tls_cert = if let Some(tls_cert) = self.tls_cert.clone() {
-                    let pem = std::fs::read(tls_cert)?;
-                    Some(X509::from_pem(&pem)?)
-                } else {
-                    None
-                };
-
-                let chain = if let Some(chain_cert) = self.chain_cert.clone() {
-                    let pem = std::fs::read(chain_cert)?;
-                    let chain = X509::stack_from_pem(&pem)?;
-
-                    let mut stack = Stack::new()?;
-                    for cert in chain {
-                        stack.push(cert)?;
-                    }
-                    Some(stack)
-                } else {
-                    None
-                };
-
-                let key = if let Some(key_path) = self.tls_key.clone() {
-                    let pem = std::fs::read(key_path)?;
-                    Some(PKey::private_key_from_pem(&pem)?)
-                } else {
-                    None
-                };
 
                 tokio::spawn(
                     server
                         .clone()
-                        .listen(ip, Duration::new(1, 0), tls_cert, chain, key),
+                        .listen(ip, Duration::new(1, 0), tls_resolver.clone()),
                 );
             }
 
