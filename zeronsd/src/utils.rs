@@ -3,7 +3,7 @@ use std::{net::IpAddr, path::Path, str::FromStr, sync::Once};
 use ipnetwork::IpNetwork;
 use reqwest::header::{HeaderMap, HeaderValue};
 use tracing::warn;
-use trust_dns_server::client::rr::{LowerName, Name};
+use hickory_server::client::rr::{LowerName, Name};
 
 use anyhow::anyhow;
 

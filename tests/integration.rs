@@ -14,7 +14,7 @@ mod sixplane {
 
     use rand::prelude::SliceRandom;
     use tracing::info;
-    use trust_dns_resolver::{IntoName, Name};
+    use hickory_dns_resolver::{IntoName, Name};
 
     use crate::service::{
         resolver::Lookup, to_ip::ToIPv6Vec, utils::HostsType, Service, ServiceConfig,
@@ -159,7 +159,7 @@ mod rfc4193 {
 
     use rand::{prelude::SliceRandom, thread_rng};
     use tracing::info;
-    use trust_dns_resolver::{IntoName, Name};
+    use hickory_dns_resolver::{IntoName, Name};
     use zeronsd::{addresses::Calculator, hosts::parse_hosts};
 
     use crate::service::{
@@ -385,7 +385,7 @@ mod ipv4 {
 
     use std::str::FromStr;
     use tracing::info;
-    use trust_dns_resolver::Name;
+    use hickory_dns_resolver::Name;
 
     use crate::service::{
         resolver::Lookup,
@@ -576,7 +576,7 @@ mod ipv4 {
 mod all {
     use rand::prelude::SliceRandom;
     use tracing::info;
-    use trust_dns_resolver::{IntoName, Name};
+    use hickory_dns_resolver::{IntoName, Name};
 
     use zeronsd::{addresses::Calculator, hosts::parse_hosts, utils::TEST_HOSTS_DIR};
 

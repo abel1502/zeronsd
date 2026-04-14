@@ -7,7 +7,7 @@ use anyhow::anyhow;
 use regex::Regex;
 use serde::Serialize;
 use tinytemplate::TinyTemplate;
-use trust_dns_resolver::Name;
+use hickory_dns_resolver::Name;
 
 #[cfg(target_os = "linux")]
 use std::os::unix::fs::PermissionsExt;

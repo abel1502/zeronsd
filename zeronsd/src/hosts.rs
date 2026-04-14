@@ -6,7 +6,7 @@ use std::{
     str::FromStr,
 };
 use tracing::warn;
-use trust_dns_server::client::rr::Name;
+use hickory_server::client::rr::Name;
 
 use crate::traits::ToHostname;
 

@@ -10,7 +10,7 @@ use ipnetwork::IpNetwork;
 use serde::{Deserialize, Serialize};
 use tracing::{info, warn};
 
-use openssl::{pkey::PKey, stack::Stack, x509::X509};
+use rustls::{pkey::PKey, stack::Stack, x509::X509};
 
 use crate::{
     addresses::*,

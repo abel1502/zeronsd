@@ -16,12 +16,12 @@ use crate::{
 
 use async_trait::async_trait;
 use ipnetwork::IpNetwork;
-use trust_dns_resolver::{
+use hickory_dns_resolver::{
     config::NameServerConfigGroup,
     proto::rr::{dnssec::SupportedAlgorithms, rdata::SOA, RData, Record, RecordSet, RecordType},
     IntoName, Name,
 };
-use trust_dns_server::{
+use hickory_server::{
     authority::{AuthorityObject, Catalog},
     client::rr::{LowerName, RrKey},
     store::{
@@ -60,7 +60,7 @@ pub async fn find_members(mut zt: ZTAuthority) {
 pub async fn init_catalog(zt: ZTAuthority) -> Result<Catalog, anyhow::Error> {
     let mut catalog = Catalog::default();
 
-    let resolv = trust_dns_resolver::system_conf::read_system_conf()?;
+    let resolv = hickory_dns_resolver::system_conf::read_system_conf()?;
     let mut nsconfig = NameServerConfigGroup::new();
 
     for server in resolv.0.name_servers() {
@@ -75,7 +75,7 @@ pub async fn init_catalog(zt: ZTAuthority) -> Result<Catalog, anyhow::Error> {
 
     let forwarder = ForwardAuthority::try_from_config(
         Name::root(),
-        trust_dns_server::authority::ZoneType::Primary,
+        hickory_server::authority::ZoneType::Primary,
         config,
     )
     .expect("Could not initialize forwarder");
@@ -291,7 +291,7 @@ impl RecordAuthority {
         let authority = InMemoryAuthority::new(
             domain_name,
             map,
-            trust_dns_server::authority::ZoneType::Primary,
+            hickory_server::authority::ZoneType::Primary,
             false,
         )
         .expect("Could not initialize authority");
@@ -526,8 +526,8 @@ impl AuthorityObject for RecordAuthority {
         Box::new(self.authority.clone())
     }
 
-    fn zone_type(&self) -> trust_dns_server::authority::ZoneType {
-        trust_dns_server::authority::ZoneType::Primary
+    fn zone_type(&self) -> hickory_server::authority::ZoneType {
+        hickory_server::authority::ZoneType::Primary
     }
 
     fn is_axfr_allowed(&self) -> bool {
@@ -536,45 +536,45 @@ impl AuthorityObject for RecordAuthority {
 
     async fn update(
         &self,
-        update: &trust_dns_server::authority::MessageRequest,
-    ) -> trust_dns_server::authority::UpdateResult<bool> {
+        update: &hickory_server::authority::MessageRequest,
+    ) -> hickory_server::authority::UpdateResult<bool> {
         self.authority.update(update).await
     }
 
-    fn origin(&self) -> &trust_dns_server::client::rr::LowerName {
+    fn origin(&self) -> &hickory_server::client::rr::LowerName {
         &self.domain_name
     }
 
     async fn lookup(
         &self,
-        name: &trust_dns_server::client::rr::LowerName,
+        name: &hickory_server::client::rr::LowerName,
         rtype: RecordType,
-        lookup_options: trust_dns_server::authority::LookupOptions,
+        lookup_options: hickory_server::authority::LookupOptions,
     ) -> Result<
-        Box<dyn trust_dns_server::authority::LookupObject>,
-        trust_dns_server::authority::LookupError,
+        Box<dyn hickory_server::authority::LookupObject>,
+        hickory_server::authority::LookupError,
     > {
         self.authority.lookup(name, rtype, lookup_options).await
     }
 
     async fn search(
         &self,
-        request_info: trust_dns_server::server::RequestInfo<'_>,
-        lookup_options: trust_dns_server::authority::LookupOptions,
+        request_info: hickory_server::server::RequestInfo<'_>,
+        lookup_options: hickory_server::authority::LookupOptions,
     ) -> Result<
-        Box<dyn trust_dns_server::authority::LookupObject>,
-        trust_dns_server::authority::LookupError,
+        Box<dyn hickory_server::authority::LookupObject>,
+        hickory_server::authority::LookupError,
     > {
         self.authority.search(request_info, lookup_options).await
     }
 
     async fn get_nsec_records(
         &self,
-        name: &trust_dns_server::client::rr::LowerName,
-        lookup_options: trust_dns_server::authority::LookupOptions,
+        name: &hickory_server::client::rr::LowerName,
+        lookup_options: hickory_server::authority::LookupOptions,
     ) -> Result<
-        Box<dyn trust_dns_server::authority::LookupObject>,
-        trust_dns_server::authority::LookupError,
+        Box<dyn hickory_server::authority::LookupObject>,
+        hickory_server::authority::LookupError,
     > {
         self.authority.get_nsec_records(name, lookup_options).await
     }

@@ -4,14 +4,14 @@ use std::{
 };
 use tracing::info;
 
-use openssl::{
+use rustls::{
     pkey::{PKey, Private},
     stack::Stack,
     x509::X509,
 };
 use tokio::net::{TcpListener, UdpSocket};
 
-use trust_dns_server::server::ServerFuture;
+use hickory_server::server::ServerFuture;
 
 use crate::authority::{init_catalog, ZTAuthority};
 

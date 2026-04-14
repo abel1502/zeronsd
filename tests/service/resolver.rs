@@ -4,7 +4,7 @@ use std::{
 };
 
 use async_trait::async_trait;
-use trust_dns_resolver::{
+use hickory_dns_resolver::{
     name_server::{GenericConnection, GenericConnectionProvider, TokioRuntime},
     AsyncResolver,
 };

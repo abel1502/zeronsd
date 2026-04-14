@@ -19,10 +19,10 @@ path = "integration.rs"
 anyhow = "1.0.89"
 async-trait = "0.1.83"
 ctor = "0.2.8"
+hickory-dns = "0.25.2"
 ipnetwork = "0.20.0"
 rand = "0.8.5"
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
 tokio = { version = "1.40.0", features = ["rt-multi-thread"] }
 tracing = "0.1.40"
-trust-dns-resolver = "0.22.0"

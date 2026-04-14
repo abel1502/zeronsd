@@ -121,7 +121,7 @@ BSD systems still need a bit of work; work that we could really use your help wi
 
 ## Acknowledgements
 
-ZeroNS demands a lot out of the [trust-dns](https://github.com/bluejekyll/trust-dns) toolkit and I personally am grateful such a library suite exists. It made my job very easy.
+ZeroNS demands a lot out of the [hickory-dns](https://github.com/hickory-dns/hickory-dns) toolkit and I personally am grateful such a library suite exists. It made my job very easy.
 
 ## License
 

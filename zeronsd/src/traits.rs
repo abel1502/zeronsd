@@ -4,8 +4,8 @@ use anyhow::anyhow;
 use ipnetwork::IpNetwork;
 use lazy_static::lazy_static;
 use regex::Regex;
-use trust_dns_resolver::{proto::error::ProtoError, IntoName, Name};
-use trust_dns_server::client::rr::LowerName;
+use hickory_dns_resolver::{proto::error::ProtoError, IntoName, Name};
+use hickory_server::client::rr::LowerName;
 use zerotier_api::central_api::types::Member;
 
 pub trait ToPointerSOA {
@@ -73,7 +73,7 @@ impl ToHostname for Member {
 }
 
 impl ToHostname for String {
-    // to_hostname turns member names into trust-dns compatible dns names.
+    // to_hostname turns member names into hickory-dns compatible dns names.
     fn to_hostname(&self) -> Result<Name, anyhow::Error> {
         let mut s = self.trim().to_string();
         for (regex, replacement) in TRANSLATION_TABLE.iter() {
@@ -104,8 +104,8 @@ mod tests {
 
     use super::{ToHostname, ToPointerSOA, ToWildcard};
     use ipnetwork::IpNetwork;
-    use trust_dns_resolver::Name;
-    use trust_dns_server::client::rr::LowerName;
+    use hickory_dns_resolver::Name;
+    use hickory_server::client::rr::LowerName;
     use zerotier_api::central_api::types::Member;
 
     #[test]
