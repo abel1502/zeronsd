@@ -15,20 +15,20 @@ use crate::{
 };
 
 use async_trait::async_trait;
-use ipnetwork::IpNetwork;
-use hickory_dns_resolver::{
-    config::NameServerConfigGroup,
-    proto::rr::{dnssec::SupportedAlgorithms, rdata::SOA, RData, Record, RecordSet, RecordType},
-    IntoName, Name,
+use hickory_resolver::{config::NameServerConfigGroup, IntoName, Name};
+use hickory_server::{
+    authority::LookupControlFlow,
+    proto::rr::{rdata, RData, Record, RecordSet, RecordType},
 };
 use hickory_server::{
     authority::{AuthorityObject, Catalog},
-    client::rr::{LowerName, RrKey},
+    proto::rr::{LowerName, RrKey},
     store::{
         forwarder::{ForwardAuthority, ForwardConfig},
         in_memory::InMemoryAuthority,
     },
 };
+use ipnetwork::IpNetwork;
 
 use zerotier_api::central_api;
 
@@ -60,7 +60,7 @@ pub async fn find_members(mut zt: ZTAuthority) {
 pub async fn init_catalog(zt: ZTAuthority) -> Result<Catalog, anyhow::Error> {
     let mut catalog = Catalog::default();
 
-    let resolv = hickory_dns_resolver::system_conf::read_system_conf()?;
+    let resolv = hickory_resolver::system_conf::read_system_conf()?;
     let mut nsconfig = NameServerConfigGroup::new();
 
     for server in resolv.0.name_servers() {
@@ -68,27 +68,28 @@ pub async fn init_catalog(zt: ZTAuthority) -> Result<Catalog, anyhow::Error> {
     }
 
     let options = Some(resolv.1);
-    let config = &ForwardConfig {
+    let config = ForwardConfig {
         name_servers: nsconfig.clone(),
         options,
     };
 
-    let forwarder = ForwardAuthority::try_from_config(
-        Name::root(),
-        hickory_server::authority::ZoneType::Primary,
-        config,
-    )
-    .expect("Could not initialize forwarder");
+    // ABEL TODO: Used to set zone_type to hickory_server::authority::ZoneType::Primary, can't do that now.
+    let forwarder = ForwardAuthority::builder_tokio(config)
+        .with_origin(Name::root())
+        .build()
+        .expect("Could not initialize forwarder");
 
-    catalog.upsert(Name::root().into(), Box::new(Arc::new(forwarder)));
+    catalog.upsert(Name::root().into(), vec![Arc::new(forwarder)]);
 
     catalog.upsert(
         zt.forward_authority.domain_name.clone(),
-        zt.forward_authority.box_clone(),
+        // ABEL TODO: Used to do box_clone(), is Arc::new the same?
+        vec![Arc::new(zt.forward_authority)],
     );
 
     for (network, authority) in zt.reverse_authority_map {
-        catalog.upsert(network.to_ptr_soa_name()?, authority.box_clone())
+        // ABEL TODO: Used to do box_clone(), is Arc::new the same?
+        catalog.upsert(network.to_ptr_soa_name()?, vec![Arc::new(authority)]);
     }
 
     Ok(catalog)
@@ -259,9 +260,9 @@ impl RecordAuthority {
         member_name: Name,
     ) -> Result<InMemoryAuthority, anyhow::Error> {
         let mut map = BTreeMap::new();
-        let mut soa = Record::with(domain_name.clone(), RecordType::SOA, 30);
+        let mut soa = Record::update0(domain_name.clone(), 30, RecordType::SOA);
 
-        soa.set_data(Some(RData::SOA(SOA::new(
+        soa.set_data(RData::SOA(rdata::SOA::new(
             domain_name.clone(),
             Name::from_str("administrator")?.append_domain(&domain_name)?,
             1,
@@ -269,18 +270,18 @@ impl RecordAuthority {
             0,
             -1,
             0,
-        ))));
+        )));
 
-        let mut soa_rs = RecordSet::new(&domain_name, RecordType::SOA, 1);
+        let mut soa_rs = RecordSet::new(domain_name.clone(), RecordType::SOA, 1);
         soa_rs.insert(soa, 1);
         map.insert(
             RrKey::new(domain_name.clone().into(), RecordType::SOA),
             soa_rs,
         );
 
-        let mut ns = Record::with(domain_name.clone(), RecordType::NS, 30);
-        ns.set_data(Some(RData::NS(member_name)));
-        let mut ns_rs = RecordSet::new(&domain_name, RecordType::NS, 1);
+        let mut ns = Record::update0(domain_name.clone(), 30, RecordType::NS);
+        ns.set_data(RData::NS(rdata::NS(member_name)));
+        let mut ns_rs = RecordSet::new(domain_name.clone(), RecordType::NS, 1);
         ns_rs.insert(ns, 1);
 
         map.insert(
@@ -293,6 +294,7 @@ impl RecordAuthority {
             map,
             hickory_server::authority::ZoneType::Primary,
             false,
+            None,
         )
         .expect("Could not initialize authority");
 
@@ -302,8 +304,8 @@ impl RecordAuthority {
     async fn replace_ip_record(&self, fqdn: Name, rdatas: Vec<RData>) {
         let serial = self.authority.serial().await;
         for rdata in rdatas {
-            let mut address = Record::with(fqdn.clone(), rdata.to_record_type(), 60);
-            address.set_data(Some(rdata.clone()));
+            let mut address = Record::update0(fqdn.clone(), 60, rdata.record_type());
+            address.set_data(rdata.clone());
             tracing::info!("Adding new record {}: ({})", fqdn.clone(), rdata);
             self.authority.upsert(address, serial).await;
         }
@@ -328,7 +330,7 @@ impl RecordAuthority {
         for (host, ips) in hosts_map.into_iter() {
             for (rrkey, rset) in rr.clone() {
                 let key = &rrkey.name().into_name().expect("could not parse name");
-                let records = rset.records(false, SupportedAlgorithms::all());
+                let records = rset.records(false);
 
                 let rt = rset.record_type();
                 let rdatas: Vec<RData> = ips
@@ -337,14 +339,14 @@ impl RecordAuthority {
                     .filter_map(|i| match i {
                         IpAddr::V4(ip) => {
                             if rt == RecordType::A {
-                                Some(RData::A(ip))
+                                Some(RData::A(rdata::A(ip)))
                             } else {
                                 None
                             }
                         }
                         IpAddr::V6(ip) => {
                             if rt == RecordType::AAAA {
-                                Some(RData::AAAA(ip))
+                                Some(RData::AAAA(rdata::AAAA(ip)))
                             } else {
                                 None
                             }
@@ -354,11 +356,9 @@ impl RecordAuthority {
 
                 if key.eq(&host)
                     && (records.is_empty()
-                        || !records
-                            .map(|r| r.data().unwrap())
-                            .all(|rd| rdatas.contains(rd)))
+                        || !records.map(|r| r.data()).all(|rd| rdatas.contains(rd)))
                 {
-                    let mut new_rset = RecordSet::new(key, rt, serial);
+                    let mut new_rset = RecordSet::new(key.clone(), rt, serial);
                     for rdata in rdatas.clone() {
                         new_rset.add_rdata(rdata);
                     }
@@ -397,8 +397,8 @@ impl RecordAuthority {
         let rdatas: Vec<RData> = ips
             .iter()
             .map(|&ip| match ip {
-                IpAddr::V4(ip) => RData::A(ip),
-                IpAddr::V6(ip) => RData::AAAA(ip),
+                IpAddr::V4(ip) => RData::A(rdata::A(ip)),
+                IpAddr::V6(ip) => RData::AAAA(rdata::AAAA(ip)),
             })
             .collect();
 
@@ -422,7 +422,7 @@ impl RecordAuthority {
                     if name_records.is_empty()
                         || !name_records
                             .records_without_rrsigs()
-                            .all(|r| rdatas.clone().contains(r.data().unwrap()))
+                            .all(|r| rdatas.clone().contains(r.data()))
                             && !type_ips.is_empty()
                     {
                         self.replace_ip_record(name.clone(), rdatas.clone()).await;
@@ -488,7 +488,7 @@ impl RecordAuthority {
             Some(records) => {
                 if !records
                     .records_without_rrsigs()
-                    .any(|rec| rec.data().unwrap().eq(&RData::PTR(fqdn.clone())))
+                    .any(|rec| rec.data().eq(&RData::PTR(rdata::PTR(fqdn.clone()))))
                 {
                     self.set_ptr_record(ptr.clone(), fqdn.clone()).await;
                 }
@@ -513,8 +513,8 @@ impl RecordAuthority {
         drop(records);
 
         let serial = self.authority.serial().await;
-        let mut address = Record::with(ptr.clone(), RecordType::PTR, 60);
-        address.set_data(Some(RData::PTR(fqdn.clone())));
+        let mut address = Record::update0(ptr.clone(), 60, RecordType::PTR);
+        address.set_data(RData::PTR(rdata::PTR(fqdn.clone())));
 
         self.authority.upsert(address, serial).await;
     }
@@ -522,16 +522,17 @@ impl RecordAuthority {
 
 #[async_trait]
 impl AuthorityObject for RecordAuthority {
-    fn box_clone(&self) -> Box<dyn AuthorityObject> {
-        Box::new(self.authority.clone())
-    }
-
     fn zone_type(&self) -> hickory_server::authority::ZoneType {
         hickory_server::authority::ZoneType::Primary
     }
 
     fn is_axfr_allowed(&self) -> bool {
         false
+    }
+
+    fn can_validate_dnssec(&self) -> bool {
+        // ABEL TODO: Maybe false?
+        self.authority.can_validate_dnssec()
     }
 
     async fn update(
@@ -541,27 +542,39 @@ impl AuthorityObject for RecordAuthority {
         self.authority.update(update).await
     }
 
-    fn origin(&self) -> &hickory_server::client::rr::LowerName {
+    fn origin(&self) -> &hickory_server::proto::rr::LowerName {
         &self.domain_name
     }
 
     async fn lookup(
         &self,
-        name: &hickory_server::client::rr::LowerName,
+        name: &hickory_server::proto::rr::LowerName,
         rtype: RecordType,
         lookup_options: hickory_server::authority::LookupOptions,
-    ) -> Result<
+    ) -> LookupControlFlow<
         Box<dyn hickory_server::authority::LookupObject>,
         hickory_server::authority::LookupError,
     > {
         self.authority.lookup(name, rtype, lookup_options).await
     }
 
+    async fn consult(
+        &self,
+        name: &LowerName,
+        rtype: RecordType,
+        lookup_options: hickory_server::authority::LookupOptions,
+        last_result: LookupControlFlow<Box<dyn hickory_server::authority::LookupObject>>,
+    ) -> LookupControlFlow<Box<dyn hickory_server::authority::LookupObject>> {
+        self.authority
+            .consult(name, rtype, lookup_options, last_result)
+            .await
+    }
+
     async fn search(
         &self,
         request_info: hickory_server::server::RequestInfo<'_>,
         lookup_options: hickory_server::authority::LookupOptions,
-    ) -> Result<
+    ) -> LookupControlFlow<
         Box<dyn hickory_server::authority::LookupObject>,
         hickory_server::authority::LookupError,
     > {
@@ -570,13 +583,28 @@ impl AuthorityObject for RecordAuthority {
 
     async fn get_nsec_records(
         &self,
-        name: &hickory_server::client::rr::LowerName,
+        name: &hickory_server::proto::rr::LowerName,
         lookup_options: hickory_server::authority::LookupOptions,
-    ) -> Result<
+    ) -> LookupControlFlow<
         Box<dyn hickory_server::authority::LookupObject>,
         hickory_server::authority::LookupError,
     > {
         self.authority.get_nsec_records(name, lookup_options).await
+    }
+
+    async fn get_nsec3_records(
+        &self,
+        info: hickory_server::authority::Nsec3QueryInfo<'_>,
+        lookup_options: hickory_server::authority::LookupOptions,
+    ) -> LookupControlFlow<
+        Box<dyn hickory_server::authority::LookupObject>,
+        hickory_server::authority::LookupError,
+    > {
+        self.authority.get_nsec3_records(info, lookup_options).await
+    }
+
+    fn nx_proof_kind(&self) -> Option<&hickory_server::dnssec::NxProofKind> {
+        self.authority.nx_proof_kind()
     }
 }
 
